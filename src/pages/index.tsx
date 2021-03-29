@@ -1,7 +1,10 @@
 import { GetStaticProps } from 'next';
 import Head from 'next/head';
+import Link from 'next/link';
 import { FiCalendar, FiUser } from 'react-icons/fi';
-
+import Prismic from '@prismicio/client';
+import { format } from 'date-fns';
+import ptBR from 'date-fns/locale/pt-BR';
 import { getPrismicClient } from '../services/prismic';
 
 import commonStyles from '../styles/common.module.scss';
@@ -26,7 +29,7 @@ interface HomeProps {
   postsPagination: PostPagination;
 }
 
-export default function Home(): JSX.Element {
+export default function Home({ postsPagination }: HomeProps): JSX.Element {
   return (
     <>
       <Head>
@@ -37,54 +40,75 @@ export default function Home(): JSX.Element {
           <img src="/logo.svg" alt="logo" />
         </header>
         <main>
-          <article>
-            <h1>Como utilizar Hooks</h1>
-            <h4>Pensando em sincronização em vez de ciclos de vida.</h4>
-            <div className={styles.info}>
-              <div>
-                <FiCalendar />
-                <span>15 Mar 2021</span>
-              </div>
-              <div>
-                <FiUser />
-                <span>Fernando Marca</span>
-              </div>
-            </div>
-          </article>
-          <article>
-            <h1>Criando um app CRA do zero</h1>
-            <h4>
-              Tudo sobre como criar a sua primeira aplicação utilizando Create
-              React App
-            </h4>
-            <div className={styles.info}>
-              <div>
-                <FiCalendar />
-                <span>15 Mar 2021</span>
-              </div>
-              <div>
-                <FiUser />
-                <span>Fernando Marca</span>
-              </div>
-            </div>
-          </article>
-          <button
-            type="button"
-            onClick={() => {
-              console.log('carregando...');
-            }}
-          >
-            Carregar mais posts
-          </button>
+          {postsPagination.results.map(post => (
+            <Link href={`/post/${post.uid}`} key={post.uid}>
+              <a>
+                <article>
+                  <h1>{post.data.title}</h1>
+                  <h4>{post.data.subtitle}</h4>
+                  <div className={styles.info}>
+                    <div>
+                      <FiCalendar />
+                      <span>{post.first_publication_date}</span>
+                    </div>
+                    <div>
+                      <FiUser />
+                      <span>{post.data.author}</span>
+                    </div>
+                  </div>
+                </article>
+              </a>
+            </Link>
+          ))}
+
+          {postsPagination.next_page && (
+            <button
+              type="button"
+              onClick={() => {
+                console.log(postsPagination.next_page);
+              }}
+            >
+              Carregar mais posts
+            </button>
+          )}
         </main>
       </div>
     </>
   );
 }
 
-// export const getStaticProps = async () => {
-//   // const prismic = getPrismicClient();
-//   // const postsResponse = await prismic.query(TODO);
+export const getStaticProps: GetStaticProps = async () => {
+  const prismic = getPrismicClient();
+  const postsResponse = await prismic.query(
+    [Prismic.predicates.at('document.type', 'posts')],
+    {
+      fetch: ['posts.title', 'posts.subtitle', 'posts.author', 'posts.content'],
+      pageSize: 1,
+    }
+  );
+  // console.log(JSON.stringify(postsResponse, null, 2));
 
-//   // TODO
-// };
+  const { next_page } = postsResponse;
+
+  const results = postsResponse.results.map(post => {
+    return {
+      uid: post.uid,
+      first_publication_date: format(
+        new Date(post.first_publication_date),
+        'dd MMM yyyy',
+        {
+          locale: ptBR,
+        }
+      ),
+      data: {
+        title: post.data.title,
+        subtitle: post.data.subtitle,
+        author: post.data.author,
+      },
+    };
+  });
+
+  return {
+    props: { postsPagination: { next_page, results } },
+  };
+};
