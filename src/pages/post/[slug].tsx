@@ -1,3 +1,4 @@
+/* eslint-disable no-return-assign */
 import format from 'date-fns/format';
 import { ptBR } from 'date-fns/locale';
 import { GetStaticPaths, GetStaticProps } from 'next';
@@ -40,9 +41,24 @@ export default function Post({ post }: PostProps): JSX.Element {
     return <div>Carregando...</div>;
   }
 
-  function calculationReadPost(): void {
-    //
-  }
+  const tempRead = post.data.content.reduce((acc, body) => {
+    const objBody = RichText.asText(body.body)
+      .split(/<.+?>(.+?)<\/.+?>/g)
+      .filter(t => t);
+
+    const ar = [];
+    objBody.forEach(fr => {
+      fr.split(' ').forEach(pl => {
+        ar.push(pl);
+      });
+    });
+
+    const min = Math.ceil(ar.length / 200);
+    // eslint-disable-next-line no-return-assign
+    // eslint-disable-next-line no-param-reassign
+    acc = min;
+    return acc;
+  }, 0);
 
   return (
     <>
@@ -74,7 +90,7 @@ export default function Post({ post }: PostProps): JSX.Element {
 
               <div>
                 <FiClock />
-                <span>4 min</span>
+                <span>{tempRead} min</span>
               </div>
             </div>
 
