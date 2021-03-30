@@ -41,23 +41,20 @@ export default function Post({ post }: PostProps): JSX.Element {
     return <div>Carregando...</div>;
   }
 
-  const tempRead = post.data.content.reduce((acc, body) => {
-    const objBody = RichText.asText(body.body)
+  const tempRead = post.data.content.reduce((acc, content) => {
+    const textBody = RichText.asText(content.body)
       .split(/<.+?>(.+?)<\/.+?>/g)
       .filter(t => t);
 
     const ar = [];
-    objBody.forEach(fr => {
+    textBody.forEach(fr => {
       fr.split(' ').forEach(pl => {
         ar.push(pl);
       });
     });
 
     const min = Math.ceil(ar.length / 200);
-    // eslint-disable-next-line no-return-assign
-    // eslint-disable-next-line no-param-reassign
-    acc = min;
-    return acc;
+    return acc + min;
   }, 0);
 
   return (
@@ -76,7 +73,7 @@ export default function Post({ post }: PostProps): JSX.Element {
                 <span>
                   {format(
                     new Date(post.first_publication_date),
-                    'dd MMM yyyy',
+                    "dd MMM' 'yyyy",
                     {
                       locale: ptBR,
                     }
@@ -94,23 +91,16 @@ export default function Post({ post }: PostProps): JSX.Element {
               </div>
             </div>
 
-            <div className={styles.contentInitial}>
-              <h1>{post.data.content[0].heading}</h1>
-              <div
-                dangerouslySetInnerHTML={{
-                  __html: post.data.content[0].body[0].text,
-                }}
-              />
-            </div>
-
-            <div className={styles.contentMain}>
-              <h1>{post.data.content[1].heading}</h1>
-              <div
-                dangerouslySetInnerHTML={{
-                  __html: post.data.content[1].body[0].text,
-                }}
-              />
-            </div>
+            {post.data.content.map(section => (
+              <div className={styles.section} key={section.heading}>
+                <h1>{section.heading}</h1>
+                <div
+                  dangerouslySetInnerHTML={{
+                    __html: RichText.asHtml(section.body),
+                  }}
+                />
+              </div>
+            ))}
           </article>
         </div>
       </main>
@@ -123,7 +113,7 @@ export const getStaticPaths: GetStaticPaths = async () => {
   const posts = await prismic.query(
     [Prismic.predicates.at('document.type', 'posts')],
     {
-      fetch: ['posts.title', 'posts.subtitle', 'posts.author'],
+      fetch: ['post.uid'],
       pageSize: 2,
     }
   );
@@ -143,28 +133,29 @@ export const getStaticProps: GetStaticProps = async ({ params }) => {
   const { slug } = params;
   const response = await prismic.getByUID('posts', String(slug), {});
 
-  const { first_publication_date, data } = response;
-
-  const contentFormated = data.content.map(content => {
-    return {
-      heading: content.heading,
-      body: [{ text: RichText.asHtml(content.body) }],
-    };
-  });
-
-  const dataFormated = {
-    title: data.title,
-    banner: { url: data.banner.url },
-    author: data.author,
-    content: contentFormated,
+  const post = {
+    uid: response.uid,
+    first_publication_date: response.first_publication_date,
+    data: {
+      title: response.data.title,
+      subtitle: response.data.subtitle,
+      author: response.data.author,
+      banner: {
+        url: response.data.banner.url,
+      },
+      content: response.data.content.map(content => {
+        return {
+          heading: content.heading,
+          body: [...content.body],
+        };
+      }),
+    },
   };
 
   return {
     props: {
-      post: {
-        first_publication_date,
-        data: dataFormated,
-      },
+      post,
     },
+    revalidate: 3600, // 1 hora
   };
 };
