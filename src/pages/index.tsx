@@ -1,14 +1,12 @@
-import { GetStaticProps } from 'next';
-import Head from 'next/head';
-import Link from 'next/link';
-import { FiCalendar, FiUser } from 'react-icons/fi';
 import Prismic from '@prismicio/client';
 import { format } from 'date-fns';
 import ptBR from 'date-fns/locale/pt-BR';
+import { GetStaticProps } from 'next';
+import Head from 'next/head';
+import Link from 'next/link';
 import { useState } from 'react';
+import { FiCalendar, FiUser } from 'react-icons/fi';
 import { getPrismicClient } from '../services/prismic';
-
-import commonStyles from '../styles/common.module.scss';
 import styles from './home.module.scss';
 
 interface Post {
@@ -28,9 +26,13 @@ interface PostPagination {
 
 interface HomeProps {
   postsPagination: PostPagination;
+  preview: boolean;
 }
 
-export default function Home({ postsPagination }: HomeProps): JSX.Element {
+export default function Home({
+  postsPagination,
+  preview,
+}: HomeProps): JSX.Element {
   const [posts, setPosts] = useState<Post[]>([]);
   const [nextPage, setNextPage] = useState<string>(postsPagination.next_page);
 
@@ -133,22 +135,33 @@ export default function Home({ postsPagination }: HomeProps): JSX.Element {
               Carregar mais posts
             </button>
           )}
+
+          {preview && (
+            <aside className={styles.buttonModePreview}>
+              <Link href="/api/exit-preview">
+                <a>Sair do modo Preview</a>
+              </Link>
+            </aside>
+          )}
         </main>
       </div>
     </>
   );
 }
 
-export const getStaticProps: GetStaticProps = async () => {
+export const getStaticProps: GetStaticProps<HomeProps> = async ({
+  preview = false,
+  previewData,
+}) => {
   const prismic = getPrismicClient();
   const postsResponse = await prismic.query(
     [Prismic.predicates.at('document.type', 'posts')],
     {
       fetch: ['posts.title', 'posts.subtitle', 'posts.author', 'posts.content'],
-      pageSize: 2,
+      pageSize: 1,
+      ref: previewData?.ref ?? null,
     }
   );
-  // console.log(JSON.stringify(postsResponse, null, 2));
 
   const { next_page } = postsResponse;
 
@@ -165,6 +178,6 @@ export const getStaticProps: GetStaticProps = async () => {
   });
 
   return {
-    props: { postsPagination: { next_page, results } },
+    props: { postsPagination: { next_page, results }, preview },
   };
 };
