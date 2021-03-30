@@ -4,6 +4,7 @@ import { GetStaticPaths, GetStaticProps } from 'next';
 import { useRouter } from 'next/router';
 import { FiCalendar, FiUser, FiClock } from 'react-icons/fi';
 import { RichText } from 'prismic-dom';
+import Prismic from '@prismicio/client';
 import Header from '../../components/Header';
 
 import { getPrismicClient } from '../../services/prismic';
@@ -39,6 +40,10 @@ export default function Post({ post }: PostProps): JSX.Element {
     return <div>Carregando...</div>;
   }
 
+  function calculationReadPost(): void {
+    //
+  }
+
   return (
     <>
       <Header />
@@ -52,7 +57,15 @@ export default function Post({ post }: PostProps): JSX.Element {
             <div className={styles.info}>
               <div>
                 <FiCalendar />
-                <span>{post.first_publication_date}</span>
+                <span>
+                  {format(
+                    new Date(post.first_publication_date),
+                    'dd MMM yyyy',
+                    {
+                      locale: ptBR,
+                    }
+                  )}
+                </span>
               </div>
               <div>
                 <FiUser />
@@ -91,15 +104,21 @@ export default function Post({ post }: PostProps): JSX.Element {
 
 export const getStaticPaths: GetStaticPaths = async () => {
   const prismic = getPrismicClient();
-  // const posts = await prismic.query();
+  const posts = await prismic.query(
+    [Prismic.predicates.at('document.type', 'posts')],
+    {
+      fetch: ['posts.title', 'posts.subtitle', 'posts.author'],
+      pageSize: 2,
+    }
+  );
+
+  const paths = posts.results.map(post => ({
+    params: { slug: post.uid },
+  }));
 
   return {
-    paths: [
-      // {
-      //   // params: {},
-      // },
-    ],
-    fallback: 'blocking',
+    paths,
+    fallback: true,
   };
 };
 
@@ -127,13 +146,7 @@ export const getStaticProps: GetStaticProps = async ({ params }) => {
   return {
     props: {
       post: {
-        first_publication_date: format(
-          new Date(first_publication_date),
-          'dd MMM yyyy',
-          {
-            locale: ptBR,
-          }
-        ),
+        first_publication_date,
         data: dataFormated,
       },
     },

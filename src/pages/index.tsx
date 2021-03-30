@@ -5,6 +5,7 @@ import { FiCalendar, FiUser } from 'react-icons/fi';
 import Prismic from '@prismicio/client';
 import { format } from 'date-fns';
 import ptBR from 'date-fns/locale/pt-BR';
+import { useState } from 'react';
 import { getPrismicClient } from '../services/prismic';
 
 import commonStyles from '../styles/common.module.scss';
@@ -30,6 +31,35 @@ interface HomeProps {
 }
 
 export default function Home({ postsPagination }: HomeProps): JSX.Element {
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [nextPage, setNextPage] = useState<string>(postsPagination.next_page);
+
+  function loadMore(): void {
+    fetch(nextPage)
+      .then(response => {
+        return response.json();
+      })
+      .then(data => {
+        const { next_page } = data;
+
+        const results: Post[] = data.results.map(post => {
+          return {
+            uid: post.uid,
+            first_publication_date: post.first_publication_date,
+            data: {
+              title: post.data.title,
+              subtitle: post.data.subtitle,
+              author: post.data.author,
+            },
+          };
+        });
+
+        setPosts([...posts, ...results]);
+        setNextPage(next_page);
+      });
+  }
+  // console.log(posts);
+
   return (
     <>
       <Head>
@@ -49,7 +79,15 @@ export default function Home({ postsPagination }: HomeProps): JSX.Element {
                   <div className={styles.info}>
                     <div>
                       <FiCalendar />
-                      <span>{post.first_publication_date}</span>
+                      <span>
+                        {format(
+                          new Date(post.first_publication_date),
+                          'dd MMM yyyy',
+                          {
+                            locale: ptBR,
+                          }
+                        )}
+                      </span>
                     </div>
                     <div>
                       <FiUser />
@@ -61,13 +99,37 @@ export default function Home({ postsPagination }: HomeProps): JSX.Element {
             </Link>
           ))}
 
-          {postsPagination.next_page && (
-            <button
-              type="button"
-              onClick={() => {
-                console.log(postsPagination.next_page);
-              }}
-            >
+          {posts.map(post => (
+            <Link href={`/post/${post.uid}`} key={post.uid}>
+              <a>
+                <article>
+                  <h1>{post.data.title}</h1>
+                  <h4>{post.data.subtitle}</h4>
+                  <div className={styles.info}>
+                    <div>
+                      <FiCalendar />
+                      <span>
+                        {format(
+                          new Date(post.first_publication_date),
+                          'dd MMM yyyy',
+                          {
+                            locale: ptBR,
+                          }
+                        )}
+                      </span>
+                    </div>
+                    <div>
+                      <FiUser />
+                      <span>{post.data.author}</span>
+                    </div>
+                  </div>
+                </article>
+              </a>
+            </Link>
+          ))}
+
+          {nextPage && (
+            <button type="button" onClick={loadMore}>
               Carregar mais posts
             </button>
           )}
@@ -83,7 +145,7 @@ export const getStaticProps: GetStaticProps = async () => {
     [Prismic.predicates.at('document.type', 'posts')],
     {
       fetch: ['posts.title', 'posts.subtitle', 'posts.author', 'posts.content'],
-      pageSize: 1,
+      pageSize: 2,
     }
   );
   // console.log(JSON.stringify(postsResponse, null, 2));
@@ -93,13 +155,7 @@ export const getStaticProps: GetStaticProps = async () => {
   const results = postsResponse.results.map(post => {
     return {
       uid: post.uid,
-      first_publication_date: format(
-        new Date(post.first_publication_date),
-        'dd MMM yyyy',
-        {
-          locale: ptBR,
-        }
-      ),
+      first_publication_date: post.first_publication_date,
       data: {
         title: post.data.title,
         subtitle: post.data.subtitle,
