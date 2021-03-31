@@ -1,21 +1,22 @@
 /* eslint-disable no-return-assign */
+import Prismic from '@prismicio/client';
 import format from 'date-fns/format';
 import { ptBR } from 'date-fns/locale';
 import { GetStaticPaths, GetStaticProps } from 'next';
-import { useRouter } from 'next/router';
-import { FiCalendar, FiUser, FiClock } from 'react-icons/fi';
-import { RichText } from 'prismic-dom';
-import Prismic from '@prismicio/client';
 import Link from 'next/link';
-import Header from '../../components/Header';
-
-import { getPrismicClient } from '../../services/prismic';
-
-import styles from './post.module.scss';
+import { useRouter } from 'next/router';
+import { RichText } from 'prismic-dom';
+import { FiCalendar, FiClock, FiUser } from 'react-icons/fi';
 import Comments from '../../components/Comments';
+import Header from '../../components/Header';
+import { getPrismicClient } from '../../services/prismic';
+import styles from './post.module.scss';
 
 interface Post {
   first_publication_date: string | null;
+  last_publication_date: string | null;
+  nexpost: { uid: string };
+  prevpost: { uid: string };
   data: {
     title: string;
     banner: {
@@ -30,7 +31,6 @@ interface Post {
     }[];
   };
 }
-
 interface PostProps {
   post: Post;
   preview: boolean;
@@ -93,7 +93,14 @@ export default function Post({ post, preview }: PostProps): JSX.Element {
               </div>
             </div>
             <div className={styles.lastDateEditing}>
-              *editado em 19 mar 2021, às 15:49
+              *editado em{' '}
+              {format(
+                new Date(post.last_publication_date),
+                "dd MMM' 'yyyy', às 'kk:mm'",
+                {
+                  locale: ptBR,
+                }
+              )}
             </div>
 
             {post.data.content.map(section => (
@@ -112,13 +119,18 @@ export default function Post({ post, preview }: PostProps): JSX.Element {
               <span>Como utilizar Hooks</span>
               <span>Criando um app CRA do Zero</span>
             </div>
+            {console.log(post.nexpost, post.prevpost)}
             <div>
-              <Link href="/#">
-                <a>Post anterior</a>
-              </Link>
-              <Link href="/#">
-                <a>Próximo post </a>
-              </Link>
+              {post.prevpost?.uid !== undefined ? (
+                <Link href={`/post/${post.prevpost.uid}`}>
+                  <a>Post anterior</a>
+                </Link>
+              ) : null}
+              {post.nexpost?.uid !== undefined ? (
+                <Link href={`/post/${post.nexpost?.uid}`}>
+                  <a>Próximo post </a>
+                </Link>
+              ) : null}
             </div>
           </div>
           <Comments />
@@ -163,10 +175,29 @@ export const getStaticProps: GetStaticProps = async ({
   const prismic = getPrismicClient();
   const { slug } = params;
   const response = await prismic.getByUID('posts', String(slug), {});
+  const prevpost = await prismic.query(
+    Prismic.predicates.at('document.type', 'posts'),
+    {
+      pageSize: 1,
+      after: `${response.uid}`,
+      orderings: '[document.last_publication_date desc]',
+    }
+  );
+  const nextpost = await prismic.query(
+    Prismic.predicates.at('document.type', 'posts'),
+    {
+      pageSize: 1,
+      after: `${response.uid}`,
+      orderings: '[document.last_publication_date]',
+    }
+  );
 
   const post = {
     uid: response.uid,
     first_publication_date: response.first_publication_date,
+    last_publication_date: response.last_publication_date,
+    prevpost: prevpost?.results[0],
+    nextpost: nextpost?.results,
     data: {
       title: response.data.title,
       subtitle: response.data.subtitle,

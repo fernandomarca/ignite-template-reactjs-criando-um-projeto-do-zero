@@ -103,21 +103,6 @@ main {
       }
     }
 
-    iframe.utterances-frame {
-      html {
-        body {
-          main {
-            h1 {
-              background: red;
-            }
-            button.btn .btn-primary {
-              background: blue;
-            }
-          }
-        }
-      }
-    }
-
     .buttonModePreview {
       display: flex;
       align-items: center;
