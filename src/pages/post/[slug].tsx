@@ -11,8 +11,8 @@ import Header from '../../components/Header';
 
 import { getPrismicClient } from '../../services/prismic';
 
-import commonStyles from '../../styles/common.module.scss';
 import styles from './post.module.scss';
+import Comments from '../../components/Comments';
 
 interface Post {
   first_publication_date: string | null;
@@ -97,7 +97,7 @@ export default function Post({ post, preview }: PostProps): JSX.Element {
             </div>
 
             {post.data.content.map(section => (
-              <div className={styles.section} key={section.heading}>
+              <div className={styles.section} key={`${section.heading}`}>
                 <h1>{section.heading}</h1>
                 <div
                   dangerouslySetInnerHTML={{
@@ -121,6 +121,7 @@ export default function Post({ post, preview }: PostProps): JSX.Element {
               </Link>
             </div>
           </div>
+          <Comments />
           {preview && (
             <aside className={styles.buttonModePreview}>
               <Link href="/api/exit-preview">
